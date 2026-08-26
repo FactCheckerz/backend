@@ -41,23 +41,28 @@ your report, which reads well next to your professor's LSTM comment.
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
+# ffmpeg is required by both the audio/video pipeline (faster-whisper, yt-dlp) and video downloads
+brew install ffmpeg            # macOS
+
 # Local LLM runtime (used for claim extraction + explanation generation)
 brew install ollama            # macOS
 ollama serve &
 ollama pull qwen2.5:7b-instruct   # or llama3.2:3b for a faster, smaller model
 
-cp .env.example .env           # fill in ENTREZ_EMAIL (required by PubMed's API policy)
+cp .env.example .env           # fill in ENTREZ_EMAIL (required by PubMed's API policy) and LLM_MODEL
 ```
 
 ## Run
 
 ```bash
 # Terminal 1 — API
-uvicorn app.main:app --reload --port 8000
+uvicorn main:app --port 8000
 # docs at http://127.0.0.1:8000/docs
+# (drop --reload, or pass --reload-dir . --reload-exclude '.venv/*' — plain --reload
+#  also watches .venv and thrashes on every dependency file)
 
 # Terminal 2 — UI
-python app/app_gradio.py
+python app.py
 ```
 
 ## What's a stub vs. what's real
@@ -65,12 +70,14 @@ python app/app_gradio.py
 - **Real, working NLP/DL pipeline**: text cleaning → LLM claim extraction →
   PubMed evidence retrieval (hybrid dense+BM25) → cross-encoder reranking →
   DeBERTa NLI verification → rule-based decision fusion → LLM explanation.
-- **Stubbed for now** (raise `NotImplementedError` with a note on how to
-  finish it): audio transcription (faster-whisper) and video OCR/keyframes
-  (OpenCV + PaddleOCR) in `preprocessing.py`. The diagram's multimodal input
-  layer is architected for these but they're the least NLP-relevant part of
-  the project — build them last, once the text pipeline is solid, and only if
-  you have time left before the deadline.
+- **Real, working multimodal input**: audio transcription (faster-whisper),
+  video keyframe OCR (OpenCV + EasyOCR) fused with a transcript of the video's
+  audio track, and downloads from any YouTube/Reel/TikTok/etc. link
+  (`yt-dlp`) — see `preprocessing.py` and `media_fetch.py`. The Gradio UI
+  (`app.py`) exposes these as separate "Upload video/audio" and "Reel /
+  YouTube link" tabs alongside the text tab; the API exposes them via
+  `POST /verify` (with a `url` field) and `POST /verify/upload` (multipart
+  file upload).
 - **Deliberately simple, not simplistic**: decision fusion is transparent
   rule-based aggregation over NLI votes rather than a second black-box
   classifier — see the docstring in `fusion.py` for why that's the right call
