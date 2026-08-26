@@ -1,0 +1,41 @@
+# ============================================================
+# Fact Checker Backend
+# Python: 3.14.x
+# Platform: Apple Silicon macOS
+# ============================================================
+
+# --- Core API / UI ---
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.32,<1.0
+gradio>=5.9,<7.0
+pydantic>=2.10,<3.0
+python-dotenv>=1.0,<2.0
+httpx>=0.28,<1.0
+
+# --- NLP / Embeddings / Deep Learning ---
+torch>=2.13,<2.14
+transformers>=4.57.1,<5.0
+sentence-transformers>=5.1,<7.0
+accelerate>=1.2,<2.0
+
+# --- Retrieval ---
+chromadb>=1.0,<2.0
+bm25s>=0.2.6,<1.0
+PyStemmer>=2.2,<3.0
+
+# --- Evidence sources ---
+biopython>=1.84,<2.0
+
+# --- Local LLM ---
+ollama>=0.4,<1.0
+
+# --- Audio/video pipeline ---
+# Requires ffmpeg on PATH: `brew install ffmpeg`
+faster-whisper>=1.0,<2.0
+opencv-python-headless>=4.10,<5.0
+easyocr>=1.7,<2.0
+yt-dlp>=2024.10
+
+# --- Apple Silicon fast inference ---
+# Only needed when using MLX on the Mac.
+# mlx-lm>=0.30,<0.32

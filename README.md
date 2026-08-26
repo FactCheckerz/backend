@@ -1,50 +1,88 @@
-# 🧠 Fact Checker — Backend
+# Multimodal Medical Misinformation Detection & Fact Verification
 
-> **The intelligence behind the verification.**
+## Colab (T4) vs. your M5 laptop — use both, for different jobs
 
-The **Fact Checker Backend** powers the AI-driven analysis behind the Fact Checker application.
+**Build and demo on the M5 laptop. Only reach for Colab if you fine-tune.**
 
-It receives content from the frontend, processes the information, identifies the **claims being made**, and evaluates them against relevant evidence to determine their credibility.
+| | M5 laptop (10-core GPU, unified memory) | Colab T4 (16GB VRAM) |
+|---|---|---|
+| Running pretrained BGE embeddings + DeBERTa NLI + a 7B Ollama model | Comfortable — unified memory means no 8GB VRAM ceiling, MPS backend in PyTorch handles all these model sizes fine | Also fine, but you're sharing 16GB across embed model + reranker + NLI + LLM, and free-tier Colab disconnects your session — bad for a FastAPI server you want to keep alive during a demo |
+| Fine-tuning DeBERTa-NLI on a custom labeled medical-misinformation set | Possible but slower — no CUDA kernels, no flash-attention, no bitsandbytes quantized training | Better — CUDA + mixed precision (fp16/bf16) training is meaningfully faster, and if your professor wants to see a "we trained something," T4 is the honest place to do it |
+| Session persistence for a live demo | Yours, runs as long as you want | Free tier times out; you'd need Colab Pro or ngrok tunneling tricks |
+| Network dependency (PubMed API, Ollama pulls) | Your own connection | Google's network, usually fine but adds a variable you don't control on demo day |
 
-### ✨ What it provides
+**Recommendation:** develop, index, and demo the whole pipeline locally on the
+M5 (FastAPI + Gradio, both instructions below). If you want a genuine
+training contribution beyond "I used pretrained SOTA models" — e.g.
+fine-tuning the NLI cross-encoder or the reranker on a medical-claims dataset
+(PUBHEALTH, SciFact, HealthVer are all public) — do *that specific step* in a
+Colab T4 notebook, save the resulting weights, then load the fine-tuned
+checkpoint back into `verification.py` on your laptop for the live pipeline.
+This also gives you a legitimate "training vs inference infra" section in
+your report, which reads well next to your professor's LSTM comment.
 
-* 📝 **Claim Detection** — Extracts factual claims from submitted content
-* 🔍 **Evidence Retrieval** — Finds relevant information to verify claims
-* ✅ **Fact Verification** — Determines whether claims are supported or refuted
-* 📊 **Confidence Score** — Provides a confidence percentage for each verdict
-* 💡 **Explanation** — Generates understandable reasoning for the result
-* 🎙️ **Multimodal Processing** — Supports text, audio, and video inputs
+## Why this stack answers "why isn't this just LSTM from 2018"
 
-### 🧩 Processing Flow
+- **Claim extraction**: instruction-tuned LLM (Qwen2.5/Llama3.2, 2024) doing
+  structured JSON decomposition, not a BiLSTM-CRF tagger.
+- **Retrieval**: BGE dense embeddings (2024 MTEB leaderboard model) fused with
+  `bm25s` (a fast modern BM25 implementation), not TF-IDF/word2vec similarity.
+- **Verification**: DeBERTa-v3 (disentangled attention, ELECTRA-style
+  pretraining — architecturally newer and stronger than BERT/RoBERTa, not
+  just "a bigger model"), used as a purpose-built NLI cross-encoder.
+- **Explanation**: the same local LLM grounded via RAG on retrieved evidence,
+  not a template-filling script.
+- Every model above is 2023-2024 vintage and open-weight, so you can name
+  every one of them by paper/release date if he pushes back.
 
-```text
-Text • Audio • Video
-        ↓
-  Content Processing
-        ↓
-   Claim Detection
-        ↓
- Evidence Retrieval
-        ↓
-  Fact Verification
-        ↓
- Verdict + Confidence
-        ↓
- Evidence & Explanation
+## Setup
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# Local LLM runtime (used for claim extraction + explanation generation)
+brew install ollama            # macOS
+ollama serve &
+ollama pull qwen2.5:7b-instruct   # or llama3.2:3b for a faster, smaller model
+
+cp .env.example .env           # fill in ENTREZ_EMAIL (required by PubMed's API policy)
 ```
 
----
+## Run
 
-## 📁 This Repository
+```bash
+# Terminal 1 — API
+uvicorn app.main:app --reload --port 8000
+# docs at http://127.0.0.1:8000/docs
 
-This repository contains the **backend codebase** of Fact Checker, responsible for the application's AI, NLP, and fact-verification processes.
+# Terminal 2 — UI
+python app/app_gradio.py
+```
 
-It exposes an API through which the **Next.js frontend** communicates with the backend.
+## What's a stub vs. what's real
 
-The frontend and backend are maintained as **separate codebases**, allowing the user interface and AI processing system to evolve independently.
+- **Real, working NLP/DL pipeline**: text cleaning → LLM claim extraction →
+  PubMed evidence retrieval (hybrid dense+BM25) → cross-encoder reranking →
+  DeBERTa NLI verification → rule-based decision fusion → LLM explanation.
+- **Stubbed for now** (raise `NotImplementedError` with a note on how to
+  finish it): audio transcription (faster-whisper) and video OCR/keyframes
+  (OpenCV + PaddleOCR) in `preprocessing.py`. The diagram's multimodal input
+  layer is architected for these but they're the least NLP-relevant part of
+  the project — build them last, once the text pipeline is solid, and only if
+  you have time left before the deadline.
+- **Deliberately simple, not simplistic**: decision fusion is transparent
+  rule-based aggregation over NLI votes rather than a second black-box
+  classifier — see the docstring in `fusion.py` for why that's the right call
+  given your likely dataset size.
 
----
+## Extending for real accuracy work
 
-### 🎓 Academic Project
-
-Developed as part of the **Deep Learning & Natural Language Processing** curriculum.
+1. Seed a proper evidence corpus beyond live PubMed calls: WHO fact sheets,
+   Cochrane reviews, CDC pages — scrape once, cache as JSON, load via
+   `index_documents()`.
+2. Fine-tune `MoritzLaurer/deberta-v3-large-zeroshot-v2.0` on SciFact/HealthVer
+   for medical-domain NLI (do this step on Colab T4, see table above).
+3. Add calibration: log verdict vs. ground truth on a held-out claim set and
+   plot a reliability diagram — this alone is a strong section for the report
+   and costs almost no extra code.
