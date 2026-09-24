@@ -1,1 +1,74 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Virtual Environment
+# =========================
+venv/
+.venv/
+env/
+
+# =========================
+# Environment Variables
+# =========================
 .env
+.env.*
+!.env.example
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS Generated Files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Testing / Coverage
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# =========================
+# Temporary Files
+# =========================
+*.tmp
+*.temp
+tmp/
+temp/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Downloaded / Processed Media
+# =========================
+downloads/
+uploads/
+media/
+temp_media/
+
+# =========================
+# ML / Model Cache
+# =========================
+.cache/
+huggingface_cache/
+transformers_cache/
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
