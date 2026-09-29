@@ -13,3 +13,9 @@ GROQ_LLM = os.getenv(
     "GROQ_LLM",
     "llama-3.3-70b-versatile"
 )
+# limits for input media:
+MAX_VIDEO_DURATION_MINUTES = int(os.getenv("MAX_VIDEO_DURATION_MINUTES","5"))
+MAX_AUDIO_DURATION_MINUTES = int(os.getenv("MAX_AUDIO_DURATION_MINUTES","5"))
+MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB","100"))
+MAX_AUDIO_SIZE_MB = int(os.getenv("MAX_AUDIO_SIZE_MB","50"))
+TEMP_MEDIA_DIR = os.getenv("TEMP_MEDIA_DIR","temp_media")
