@@ -94,7 +94,7 @@ def validate_media_duration(file_path: str, input_type: str) -> float:
         raise MediaTooLongError(
             f"{input_type} duration exceeds the maximum"
             f"allowed duration of"
-            f"{max_duration / (1024*1024):.0f} minutes"
+            f"{max_duration / 60:.0f} minutes"
         )
     return duration
 
@@ -132,15 +132,15 @@ def extract_audio(video_path: str) -> Path:
     command = [
         "ffmpeg",
         "-y",
-        "i",
+        "-i",
         str(video_path),
         "-vn",
         "-ac",
         "1",
-        "ar",
+        "-ar",
         "16000",
         "-c:a",
-        "pcm_s161e",
+        "pcm_s16le",
         str(output_path),
     ]
     result = subprocess.run(
@@ -152,7 +152,7 @@ def extract_audio(video_path: str) -> Path:
         if output_path.exists():
             output_path.unlink()
         raise AudioExtractionError(
-            "Failed to extract audio from video"
+            f"Failed to extract audio from video: {result.stderr}"
         )
     return output_path
 
