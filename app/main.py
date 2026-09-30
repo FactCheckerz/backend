@@ -10,7 +10,10 @@ app = FastAPI(
 )
 
 app.include_router(
-    ingestion_router,claims_router
+    ingestion_router
+)
+app.include_router(
+    claims_router
 )
 
 @app.get("/")

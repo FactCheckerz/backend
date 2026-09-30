@@ -180,6 +180,68 @@ Backend scaffolding is in place using FastAPI:-
 
 **Next step:** Begin Phase 2 — Claim Review & Editing.
 
+### [Phase 2 — Complete] — 2026-09-30
+
+- Completed Phase 2 — **Claim Review & Editing**.
+
+- Finalized the Phase 2 approach:
+  - Reviewed claims remain in the same `claims` table row.
+  - `claim_text` stores the current/reviewed version of the claim.
+  - `original_span` remains reserved for the original source span from which
+    the claim was extracted.
+  - Added `original_claim_text` to preserve the exact Phase 1 claim so that
+    edited claims can always be restored.
+  - No separate claim-review table was introduced.
+
+- Implemented claim management operations:
+  - Include a claim.
+  - Exclude a claim.
+  - Edit a claim.
+  - Restore the original claim.
+  - Add a new claim.
+  - Delete a manually added claim.
+  - Reorder/manage the reviewed claim list as part of the review workflow.
+  - Confirm the final set of included claims for the next phase.
+
+- Implemented NLP validation specifically for **edited claims**.
+  - Phase 2 does not perform claim canonicalization.
+  - Canonicalization and deeper NLP processing remain part of Phase 3.
+  - Implemented BART-MNLI validation using `facebook/bart-large-mnli`.
+  - Implemented a separate hybrid validation function using BART-MNLI +
+    Groq LLM for future use.
+  - The validation strategy can be switched through configuration without
+    changing the claim-review service logic.
+  - Invalid edited claims are rejected and the existing claim remains
+    unchanged.
+
+- Implemented claim-review backend structure:
+  - Claim review API router.
+  - Claim request/response schemas.
+  - Claim management service.
+  - Pluggable claim validation service.
+  - Configuration for selecting the edit-validation strategy.
+
+- Implemented the following claim-review API operations:
+  - `GET /claims/submission/{submission_id}` — retrieve claims for a submission.
+  - `POST /claims/{claim_id}/include` — include a claim.
+  - `POST /claims/{claim_id}/exclude` — exclude a claim.
+  - `PUT /claims/{claim_id}` — edit and validate a claim.
+  - `POST /claims/{claim_id}/restore` — restore the original claim.
+  - `POST /claims/submission/{submission_id}/add` — add a manual claim.
+  - `DELETE /claims/{claim_id}` — delete a manually added claim.
+  - `POST /claims/confirm` — confirm the reviewed claim set for Phase 3.
+
+- Detected Phase 1 claims are not permanently deleted during review.
+  Excluding a detected claim changes its `included` state so the original
+  claim remains recoverable.
+
+- Manual claims can be permanently deleted.
+
+- Phase 2 is now **complete** and the reviewed claim set is ready to be passed
+  into Phase 3.
+
+- **Next step:** Begin Phase 3 — Claim Processing (Canonicalization).
+
 ---
 
 <!-- Add new entries above this line -->
