@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from app.core.supabase import supabase
+# router imports
 from app.api.ingestion import router as ingestion_router
+from app.api.claims import router as claims_router
 
 app = FastAPI(
     title="Factchecker API",
@@ -8,7 +10,7 @@ app = FastAPI(
 )
 
 app.include_router(
-    ingestion_router
+    ingestion_router,claims_router
 )
 
 @app.get("/")
