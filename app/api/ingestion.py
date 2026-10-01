@@ -10,7 +10,7 @@ from app.services.ingestion.service import (
 )
 
 router = APIRouter(
-    prefix="/api/v1/ingest",
+    prefix="/ingest",
     tags=["Ingestion"]
 )
 

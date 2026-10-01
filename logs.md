@@ -242,6 +242,14 @@ Backend scaffolding is in place using FastAPI:-
 
 - **Next step:** Begin Phase 3 — Claim Processing (Canonicalization).
 
+- **Imp** Phase 3 is divided into 3 subphases 3.1,3.2,3.3 - 2026-10-01
+   3.1 will act between phase 1 and phase 2 (if refered according to app workflow)
+   it is responsible for generating the initial candidate claims list
+   3.2 and 3.3 will then work later on claim processing
+   More Details:
+   During the transition from Phase 2 to Phase 3, it was clarified that the initial candidate claim extraction had not actually been implemented as part of Phase 1. Phase 1 was completed as the input ingestion layer, covering input validation, media handling, hashing, transcription/extraction, temporary processing, URL downloading, and cache connectivity. Phase 2 implemented the claim review and editing operations but assumes that an initial candidate claim list is provided to it. Therefore, Phase 3 will begin with the missing initial candidate claim extraction stage. Phase 3.1 will extract potential candidate claims from the processed input/transcript and pass them to the existing Phase 2 review workflow. The later stages of Phase 3 will then classify whether the candidates are genuine verifiable claims and canonicalize the approved claims before they are passed to Phase 4 for agentic verification.
+
+
 ---
 
 <!-- Add new entries above this line -->
