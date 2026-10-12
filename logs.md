@@ -6,9 +6,9 @@
 
 | Phase | Description | Status |
 |---|---|---|
-| 1 | Ingestion → Claim Detection (backend core) | ✅ Done |
-| 2 | Claim Review & Editing | 🔲 Not started |
-| 3 | Claim Processing (canonicalization) | 🔲 Not started |
+| 1 | Ingestion | ✅ Done |
+| 2 | Claim Review & Editing | ✅ Done |
+| 3 | Claim Processing (canonicalization) | 🟡 In progress (3.1 drafted, untested) |
 | 4 | Agentic Verification (LangGraph) | 🔲 Not started |
 | 5 | Result Aggregation & Persistence | 🔲 Not started |
 | 6 | Auth & Route Protection | 🔲 Not started |
@@ -247,8 +247,26 @@ Backend scaffolding is in place using FastAPI:-
    it is responsible for generating the initial candidate claims list
    3.2 and 3.3 will then work later on claim processing
    More Details:
-   During the transition from Phase 2 to Phase 3, it was clarified that the initial candidate claim extraction had not actually been implemented as part of Phase 1. Phase 1 was completed as the input ingestion layer, covering input validation, media handling, hashing, transcription/extraction, temporary processing, URL downloading, and cache connectivity. Phase 2 implemented the claim review and editing operations but assumes that an initial candidate claim list is provided to it. Therefore, Phase 3 will begin with the missing initial candidate claim extraction stage. Phase 3.1 will extract potential candidate claims from the processed input/transcript and pass them to the existing Phase 2 review workflow. The later stages of Phase 3 will then classify whether the candidates are genuine verifiable claims and canonicalize the approved claims before they are passed to Phase 4 for agentic verification.
+   During the transition from Phase 2 to Phase 3, it was clarified that the initial candidate claim extraction had not actually been implemented as part of Phase 1. Phase 1 was completed as the input ingestion layer, covering input validation, media handling, hashing, transcription/extraction, temporary processing, URL downloading, and cache connectivity. Phase 2 implemented the claim review and editing operations but assumes that an initial candidate claim list is provided to it. 
+   Therefore, Phase 3 will begin with the missing initial candidate claim extraction stage. Phase 3.1 will extract potential candidate claims from the processed input/transcript and pass them to the existing Phase 2 review workflow. The later stages of Phase 3 will then classify whether the candidates are genuine verifiable claims and canonicalize the approved claims before they are passed to Phase 4 for agentic verification.
+---
 
+### [Phase 3.1 — Initial Candidate Claim Extraction] — 2026-10-12
+
+- Began Phase 3.1 to implement the missing initial candidate claim extraction stage. This stage sits between Phase 1's processed input/transcript and Phase 2's existing claim review workflow.
+- Finalized a configurable extraction design with two strategies:
+  - **Option A — NLP/ML:** sentence segmentation followed by BART-MNLI zero-shot classification using `facebook/bart-large-mnli` to identify potential factual statements.
+  - **Option C — Hybrid:** BART-MNLI generates initial candidates, then Groq using `llama-3.3-70b-versatile` reviews/refines the candidate list.
+- Added configuration through `CLAIM_EXTRACTION_STRATEGY` (`nlp` or `hybrid`) and `CLAIM_EXTRACTION_THRESHOLD`, allowing the strategy and candidate threshold to be changed without rewriting the extraction service.
+- Added a candidate-claim response schema containing `claim_text`, `original_span`, and optional confidence, along with submission-level extraction response metadata.
+- Added a shared extraction service that selects the configured strategy and exposes a common extraction interface.
+- Added the planned endpoint `POST /claims/extract/{submission_id}` to retrieve the submission's processed `raw_text`, extract candidate claims, store them in the existing `claims` table, update the submission status to `claims_ready`, and return the generated list.
+- Candidate claims are intended to be available to the existing Phase 2 APIs for inclusion, exclusion, editing, restoration, adding, deleting, and confirmation.
+- Phase 3.1 only generates potential candidates. It does not perform final claim-vs-non-claim classification or canonicalization; those remain later Phase 3 stages.
+- **Testing status:** implementation code has been drafted/provided; end-to-end execution, API testing, database validation, and tuning of extraction quality still need to be completed before marking Phase 3.1 fully verified.
+- **Pending — integrated flow testing (Phase 1 → Phase 3.1 → Phase 2):** testing extraction against the given inputs is **not done yet**. This means testing ingestion (text / audio / video / URL), then candidate claim extraction on the resulting `raw_text`, then the Phase 2 claim review & editing endpoints (include, exclude, edit, restore, add, delete, confirm) to verify all three stages work together. This integrated test will be carried out as part of Phase 3.1.
+
+**Next step:** Integrate the router, verify required dependencies, then test extraction with representative text and confirm that the resulting candidates work with the Phase 2 review endpoints (i.e. run the full Phase 1 → Phase 3.1 → Phase 2 flow test).
 
 ---
 
