@@ -13,6 +13,7 @@ misinformation-verdict data you're likely to have.
 """
 import ollama
 from config import LLM_MODEL
+from progress import step, done
 
 _EXPLANATION_PROMPT = """You are a medical fact-checking assistant. Given a
 claim, a verdict, and supporting/contradicting evidence snippets, write a
@@ -28,7 +29,9 @@ Evidence:
 
 
 def fuse_verdict(evidence: list[dict]) -> dict:
+    step("Stage 6: fusing NLI votes into a verdict...")
     if not evidence:
+        done("No evidence — verdict Unverified.")
         return {"verdict": "Unverified", "confidence": 0.0, "evidence_strength": 0.0}
 
     support = [e for e in evidence if e["nli_label"] == "entailment"]
@@ -51,16 +54,19 @@ def fuse_verdict(evidence: list[dict]) -> dict:
         verdict = "Misleading / Partially True"
         confidence = 1 - abs(support_strength - contradict_strength) / (total_strength or 1)
 
-    return {
+    result = {
         "verdict": verdict,
         "confidence": round(float(confidence), 3),
         "evidence_strength": round(float(total_strength), 3),
         "supporting_count": len(support),
         "contradicting_count": len(contradict),
     }
+    done(f"Verdict: {verdict} (confidence {result['confidence']:.0%}).")
+    return result
 
 
 def generate_explanation(claim: str, verdict_info: dict, evidence: list[dict]) -> str:
+    step(f"Stage 7: generating explanation via {LLM_MODEL} (Ollama)...")
     evidence_block = "\n".join(
         f"- [{e['nli_label'].upper()}, conf={e['nli_confidence']:.2f}] "
         f"({e.get('source', 'unknown')}) {e['text'][:300]}"
@@ -74,6 +80,7 @@ def generate_explanation(claim: str, verdict_info: dict, evidence: list[dict]) -
         messages=[{"role": "user", "content": prompt}],
         options={"temperature": 0.3},
     )
+    done("Stage 7 complete.")
     return response["message"]["content"]
 
 

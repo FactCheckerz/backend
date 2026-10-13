@@ -22,6 +22,7 @@ Runs against a local Ollama server:
 import json
 import ollama
 from config import LLM_MODEL
+from progress import step, done
 
 _SYSTEM_PROMPT = """You are a medical claim extraction system. Given a message
 (often a WhatsApp/social forward), extract every distinct, independently
@@ -43,6 +44,7 @@ If there is no checkable medical claim, return {"claims": []}.
 
 
 def extract_claims(unified_text: str) -> list[dict]:
+    step(f"Stage 3: extracting medical claims via {LLM_MODEL} (Ollama)...")
     response = ollama.chat(
         model=LLM_MODEL,
         messages=[
@@ -54,10 +56,12 @@ def extract_claims(unified_text: str) -> list[dict]:
     )
     try:
         parsed = json.loads(response["message"]["content"])
-        return parsed.get("claims", [])
+        claims = parsed.get("claims", [])
     except (json.JSONDecodeError, KeyError):
         # Fail safe rather than crash the pipeline on a malformed LLM response
-        return []
+        claims = []
+    done(f"Stage 3 complete — {len(claims)} claim(s) extracted.")
+    return claims
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ without a key, 10 req/s with one — set ENTREZ_API_KEY in .env).
 from Bio import Entrez
 from config import ENTREZ_EMAIL, ENTREZ_API_KEY
 from retrieval import index_documents
+from progress import step, done
 
 Entrez.email = ENTREZ_EMAIL
 if ENTREZ_API_KEY:
@@ -17,11 +18,14 @@ if ENTREZ_API_KEY:
 
 
 def fetch_pubmed_evidence(topic_query: str, max_results: int = 10) -> list[dict]:
+    step(f"Searching PubMed for: \"{topic_query}\"...")
     handle = Entrez.esearch(db="pubmed", term=topic_query, retmax=max_results, sort="relevance")
     ids = Entrez.read(handle)["IdList"]
     if not ids:
+        done("PubMed search returned no results.")
         return []
 
+    step(f"Found {len(ids)} PubMed article(s), fetching abstracts...")
     handle = Entrez.efetch(db="pubmed", id=ids, rettype="abstract", retmode="xml")
     records = Entrez.read(handle)["PubmedArticle"]
 
@@ -43,14 +47,19 @@ def fetch_pubmed_evidence(topic_query: str, max_results: int = 10) -> list[dict]
             })
         except (KeyError, TypeError):
             continue
+    done(f"Parsed {len(docs)} usable PubMed abstract(s).")
     return docs
 
 
 def refresh_corpus_for_topic(topic_query: str):
     """Call this before verifying a claim on a topic you haven't indexed yet."""
+    step("Stage 4a: refreshing evidence corpus from PubMed...")
     docs = fetch_pubmed_evidence(topic_query)
     if docs:
+        step(f"Indexing {len(docs)} document(s) (embedding + BM25)...")
         index_documents(docs)
+        done("Indexing complete.")
+    done("Stage 4a complete.")
     return docs
 
 # For WHO / govt. sources: no clean free API exists, so the practical approach

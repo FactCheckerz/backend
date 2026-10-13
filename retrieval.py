@@ -27,8 +27,11 @@ from config import (
     EMBED_MODEL, CHROMA_DIR, COLLECTION_NAME, DEVICE,
     DENSE_WEIGHT, BM25_WEIGHT, TOP_K_RETRIEVE,
 )
+from progress import step, done
 
+step(f"Loading embedding model {EMBED_MODEL} (device={DEVICE}, first time only)...")
 _embedder = SentenceTransformer(EMBED_MODEL, device=DEVICE)
+done("Embedding model loaded.")
 _chroma = chromadb.PersistentClient(path=CHROMA_DIR)
 _collection = _chroma.get_or_create_collection(COLLECTION_NAME)
 
@@ -41,6 +44,7 @@ def index_documents(docs: list[dict]):
     """docs: [{"id": str, "text": str, "source": str, "url": str}, ...]"""
     global _bm25_index, _bm25_corpus_ids
 
+    step(f"Embedding {len(docs)} document(s) (BGE dense vectors)...")
     embeddings = _embedder.encode(
         [d["text"] for d in docs],
         normalize_embeddings=True,   # required for cosine similarity via dot product
@@ -54,13 +58,16 @@ def index_documents(docs: list[dict]):
     )
 
     # bm25s: tokenizes + builds a sparse index far faster than rank_bm25 (Rust-backed under the hood)
+    step("Building BM25 sparse index...")
     corpus_tokens = bm25s.tokenize([d["text"] for d in docs], stopwords="en")
     _bm25_index = bm25s.BM25()
     _bm25_index.index(corpus_tokens)
     _bm25_corpus_ids = [d["id"] for d in docs]
+    done("Indexing done (dense + BM25).")
 
 
 def retrieve(query: str, top_k: int = TOP_K_RETRIEVE) -> list[dict]:
+    step(f"Stage 4b: retrieving evidence for: \"{query}\" (hybrid dense+BM25)...")
     # --- dense leg ---
     q_emb = _embedder.encode([query], normalize_embeddings=True).tolist()
     dense_res = _collection.query(query_embeddings=q_emb, n_results=top_k)
@@ -94,7 +101,9 @@ def retrieve(query: str, top_k: int = TOP_K_RETRIEVE) -> list[dict]:
     ranked_ids = sorted(fused, key=fused.get, reverse=True)[:top_k]
 
     fetched = _collection.get(ids=ranked_ids, include=["documents", "metadatas"])
-    return [
+    results = [
         {"id": doc_id, "text": text, "score": fused[doc_id], **meta}
         for doc_id, text, meta in zip(fetched["ids"], fetched["documents"], fetched["metadatas"])
     ]
+    done(f"Stage 4b complete — {len(results)} evidence candidate(s) retrieved.")
+    return results

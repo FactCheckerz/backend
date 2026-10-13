@@ -18,24 +18,35 @@ into one model, they optimize for different things:
 """
 from sentence_transformers import CrossEncoder
 from config import RERANKER_MODEL, NLI_MODEL, DEVICE, TOP_K_AFTER_RERANK
+from progress import step, done
 
+step(f"Loading reranker model {RERANKER_MODEL} (device={DEVICE}, first time only)...")
 _reranker = CrossEncoder(RERANKER_MODEL, device=DEVICE)
+done("Reranker model loaded.")
+
+step(f"Loading NLI model {NLI_MODEL} (device={DEVICE}, first time only)...")
 _nli = CrossEncoder(NLI_MODEL, device=DEVICE)  # trained with (premise, hypothesis) -> [entail, neutral, contra]
+done("NLI model loaded.")
+
 _NLI_LABELS = ["entailment", "neutral", "contradiction"]
 
 
 def rerank(claim: str, evidence: list[dict]) -> list[dict]:
+    step(f"Reranking {len(evidence)} evidence candidate(s) for relevance...")
     pairs = [(claim, e["text"]) for e in evidence]
     scores = _reranker.predict(pairs)
     for e, s in zip(evidence, scores):
         e["relevance_score"] = float(s)
     ranked = sorted(evidence, key=lambda e: e["relevance_score"], reverse=True)
-    return ranked[:TOP_K_AFTER_RERANK]
+    top = ranked[:TOP_K_AFTER_RERANK]
+    done(f"Reranking complete — keeping top {len(top)}.")
+    return top
 
 
 def check_entailment(claim: str, evidence: list[dict]) -> list[dict]:
     """evidence -> premise, claim -> hypothesis (standard NLI direction:
     does the evidence entail the claim?)."""
+    step(f"Stage 5: running NLI entailment check on {len(evidence)} evidence piece(s)...")
     pairs = [(e["text"], claim) for e in evidence]
     logits = _nli.predict(pairs, apply_softmax=True)
     for e, probs in zip(evidence, logits):
@@ -43,6 +54,7 @@ def check_entailment(claim: str, evidence: list[dict]) -> list[dict]:
         e["nli_label"] = _NLI_LABELS[label_idx]
         e["nli_confidence"] = float(probs[label_idx])
         e["nli_probs"] = {lbl: float(p) for lbl, p in zip(_NLI_LABELS, probs)}
+    done("Stage 5 complete.")
     return evidence
 
 

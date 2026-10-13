@@ -17,20 +17,32 @@ MEDIA_TIMEOUT = 600  # audio/video: download + transcription/OCR can take a whil
 
 
 def render(data):
-    if not data.get("claims"):
+    claims = data.get("claims")
+    if not claims:
         return "No checkable medical claim found in this message.", "", ""
 
-    c = data["claims"][0]  # demo UI shows the first extracted claim
-    verdict_md = (
-        f"### Verdict: **{c['verdict']}**  \n"
-        f"Confidence: {c['confidence']:.0%}  \n"
-        f"Claim checked: *{c['claim']}*"
-    )
-    evidence_md = "\n".join(
-        f"- [{e['nli_label'].upper()}] {e.get('source','')}: {e['text'][:200]}..."
-        for e in c["evidence_detail"]
-    )
-    return verdict_md, c["explanation"], evidence_md
+    verdict_blocks = []
+    explanation_blocks = []
+    evidence_blocks = []
+    for i, c in enumerate(claims, start=1):
+        prefix = f"Claim {i}/{len(claims)}"
+        verdict_blocks.append(
+            f"### {prefix} — Verdict: **{c['verdict']}**  \n"
+            f"Confidence: {c['confidence']:.0%}  \n"
+            f"Claim checked: *{c['claim']}*"
+        )
+        explanation_blocks.append(f"{prefix}: {c['explanation']}")
+        evidence_blocks.append(
+            f"**{prefix}**\n" + "\n".join(
+                f"- [{e['nli_label'].upper()}] {e.get('source','')}: {e['text'][:200]}..."
+                for e in c["evidence_detail"]
+            )
+        )
+
+    verdict_md = "\n\n---\n\n".join(verdict_blocks)
+    explanation_text = "\n\n".join(explanation_blocks)
+    evidence_md = "\n\n".join(evidence_blocks)
+    return verdict_md, explanation_text, evidence_md
 
 
 def check_text(message: str):
