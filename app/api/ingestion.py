@@ -61,7 +61,7 @@ def ingest_url_endpoint(request: URLIngestionRequest):
                 "input_type":submission["input_type"],
                 "mode":submission["mode"],
                 "raw_url":submission["raw_url"],
-                "duration_seconds":submission["duration_seconds"],
+                "duration_seconds":result["duration_seconds"],
                 "raw_text": submission["raw_text"],
                 "status":submission["status"]
             }
@@ -114,7 +114,7 @@ def ingest_media_endpoint(mode: str = Form(...),input_type: str = Form(...),file
                 "submission_id":submission["id"],
                 "input_type":submission["input_type"],
                 "mode":submission["mode"],
-                "duration_seconds":submission["duration_seconds"],
+                "duration_seconds":ingested["duration_seconds"],
                 "raw_text": submission["raw_text"],
                 "status":submission["status"]
             }

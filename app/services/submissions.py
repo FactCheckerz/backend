@@ -4,7 +4,7 @@ def get_or_create_submission(ingested_data: dict,mode: str) -> dict:
     """
     Store an ingested input or return existing cached submission
     """
-    input_type == ingested_data["input_type"]
+    input_type = ingested_data["input_type"]
     query = supabase.table("submissions").select("*").eq("mode",mode)
     if input_type == "text":
         query = query.eq("text_hash",ingested_data["text_hash"])
@@ -25,7 +25,8 @@ def get_or_create_submission(ingested_data: dict,mode: str) -> dict:
         "mode": mode,
         "raw_url": ingested_data.get("raw_url"),
         "content_hash":ingested_data.get("content_hash"),
-        "raw_text":ingested_data.get("text_hash"),
+        "raw_text":ingested_data.get("raw_text"),
+        "text_hash":ingested_data.get("text_hash"),
         "status":"pending",
     }
     result = supabase.table("submissions").insert(row).execute()

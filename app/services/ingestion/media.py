@@ -174,6 +174,7 @@ def ingest_media(file_path:str,input_type:str)->dict:
         audio_path = str(extract_audio(str(path)))
 
     transcription_source = audio_path or str(path)
+    validate_asr_file_size(transcription_source)
     raw_text = transcribe_audio(transcription_source)
 
     result = {
@@ -184,6 +185,7 @@ def ingest_media(file_path:str,input_type:str)->dict:
         "audio_path":audio_path,
         "media_path":str(path)
     }
+    return result
 
 def validate_asr_file_size(audio_path: str) -> None:
     """Ensure the media sent to Groq is within the configured API limit"""
