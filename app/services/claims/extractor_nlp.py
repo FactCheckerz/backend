@@ -1,18 +1,22 @@
 from typing import List
+from functools import lru_cache
 from transformers import pipeline
 from app.core.claim_extraction_config import CLAIM_EXTRACTION_THRESHOLD
 from app.schemas.claim_extraction import CandidateClaim
+
+
+
+@lru_cache(maxsize=1)
+def get_bart_classifier():
+    return pipeline(
+        "zero-shot-classification",
+        model = "facebook/bart-large-mnli"
+    )
 
 class NLPClaimExtractor:
     """Uses BART-MNLI to identify sentences/spans that appear 
     to contain factual assertions
     This produces candidate claims only."""
-
-    def __init__(self):
-        self.classifier = pipeline(
-            "zero-shot-classification",
-            model="facebook/bart-large-mnli"
-        )
 
     def _split_into_sentences(self,text: str) -> List[str]:
         """Basic sentence segmentation"""
@@ -36,6 +40,7 @@ class NLPClaimExtractor:
         sentences = self._split_into_sentences(text)
         if not sentences:
             return []
+        classifier = get_bart_classifier()
         candidates = []
         labels = [
             "a factual statement that can be verified",
@@ -44,7 +49,7 @@ class NLPClaimExtractor:
         for sentence in sentences:
             if len(sentence.strip())<5:
                 continue
-            result = self.classifier(
+            result = classifier(
                 sentence,
                 candidate_labels = labels,
                 multi_label = False

@@ -23,10 +23,12 @@ class HybridClaimExtractor:
         content = content.strip()
         try:
             parsed = json.loads(content)
-            if isinstance(parsed, list):
+            if isinstance(parsed,list):
                 return parsed
+            else:
+                return []
         except json.JSONDecodeError:
-            return parsed
+            pass
 
         match = re.search(r"\[.*\]", content, re.DOTALL)
         if not match:

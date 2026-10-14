@@ -8,6 +8,7 @@ from app.services.ingestion.service import (
     ingest_uploaded_media,
     ingest_url
 )
+from app.services.submissions import get_or_create_submission
 
 router = APIRouter(
     prefix="/ingest",
@@ -16,13 +17,24 @@ router = APIRouter(
 
 @router.post("/text")
 def ingest_text_endpoint(request: TextIngestionRequest):
-    """Ingest a text input"""
+    """Normalize, cache and persist a text submission"""
     try:
-        result = ingest_text_input(request.text)
+        ingested = ingest_text_input(request.text)
+        result = get_or_create_submission(
+            ingested_data=ingested,
+            mode = request.mode,
+        )
+        submission = result["submission"]
         return {
             "status":"success",
-            "mode":request.mode,
-            "data":result
+            "cache_hit":result["cache_hit"],
+            "data":{
+                "submission_id":submission["id"],
+                "input_type":submission["input_type"],
+                "mode":submission["mode"],
+                "raw_text":submission["raw_text"],
+                "status":submission["status"],
+            }
         }
     except IngestionError as exc:
         raise HTTPException(

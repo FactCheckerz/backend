@@ -5,6 +5,7 @@ class EditClaimRequest(BaseModel):
 
 class AddClaimRequest(BaseModel):
     claim_text: str = Field(...,min_length=10,max_length=2000)
+    included: bool = True
 
 class ClaimActionResponse(BaseModel):
     success: bool
