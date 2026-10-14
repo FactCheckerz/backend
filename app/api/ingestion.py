@@ -48,15 +48,22 @@ def ingest_url_endpoint(request: URLIngestionRequest):
     result = None
     try:
         result = ingest_url(request.url)
+        stored = get_or_create_submission(
+            ingested_data=result,
+            mode=request.mode
+        )
+        submission = stored["submission"]
         response = {
             "status":"success",
-            "mode":request.mode,
+            "cache_hit": stored["cache_hit"],
             "data":{
-                "input_type":result["input_type"],
-                "raw_url":result["raw_url"],
-                "content_hash":result["content_hash"],
-                "duration_seconds":result["duration_seconds"],
-                "title":result.get("title")
+                "submission":submission["id"],
+                "input_type":submission["input_type"],
+                "mode":submission["mode"],
+                "raw_url":submission["raw_url"],
+                "duration_seconds":submission["duration_seconds"],
+                "raw_text": submission["raw_text"],
+                "status":submission["status"]
             }
         }
         return response
@@ -93,15 +100,23 @@ def ingest_media_endpoint(mode: str = Form(...),input_type: str = Form(...),file
         media_path = save_uploaded_file(
             file.file,input_type,file.filename
         )
-        result = ingest_uploaded_media(str(media_path),input_type)
-        audio_path = result.get("audio_path")
+        ingested = ingest_uploaded_media(str(media_path),input_type)
+        audio_path = ingested.get("audio_path")
+        stored = get_or_create_submission(
+            ingested_data=ingested,
+            mode=mode
+        )
+        submission = stored["submission"]
         return {
             "status":"success",
-            "mode":mode,
+            "cache_hit":stored["cache_hit"],
             "data":{
-                "input_type":result["input_type"],
-                "content_hash":result["content_hash"],
-                "duration_seconds":result["duration_seconds"]
+                "submission_id":submission["id"],
+                "input_type":submission["input_type"],
+                "mode":submission["mode"],
+                "duration_seconds":submission["duration_seconds"],
+                "raw_text": submission["raw_text"],
+                "status":submission["status"]
             }
         }
     except IngestionError as exc:

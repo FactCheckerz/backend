@@ -21,3 +21,6 @@ class DownloadError(IngestionError):
 
 class AudioExtractionError(IngestionError):
     """Raised when audio cannot be extracted from a video."""
+
+class TranscriptionError(IngestionError):
+    """Raised when ASR transcription fails."""

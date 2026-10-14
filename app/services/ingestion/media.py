@@ -8,7 +8,8 @@ from app.core.config import (
     MAX_VIDEO_DURATION_MINUTES,
     MAX_AUDIO_SIZE_MB,
     MAX_VIDEO_SIZE_MB,
-    TEMP_MEDIA_DIR
+    TEMP_MEDIA_DIR,
+    ASR_MAX_FILE_SIZE_MB
 )
 
 from app.services.ingestion.exceptions import (
@@ -19,6 +20,7 @@ from app.services.ingestion.exceptions import (
 )
 
 from app.services.ingestion.hashing import calculate_file_hash
+from app.services.ingestion.transcription import transcribe_audio
 
 ALLOWED_AUDIO_EXTENSIONS = {
     ".mp3",".wav",".m4a",".aac",".ogg",".flac"
@@ -157,7 +159,7 @@ def extract_audio(video_path: str) -> Path:
     return output_path
 
 def ingest_media(file_path:str,input_type:str)->dict:
-    """Validate,hash,normalize a media file"""
+    """Validate media, hash it, extract audio from video when needed and produce a transcript"""
     path = Path(file_path)
     if not path.exists():
         raise InvalidInputError(
@@ -166,14 +168,28 @@ def ingest_media(file_path:str,input_type:str)->dict:
     validate_file_size(str(path),input_type)
     duration = validate_media_duration(str(path),input_type)
     content_hash = calculate_file_hash(str(path))
+    audio_path = None
+
+    if input_type == "video_file":
+        audio_path = str(extract_audio(str(path)))
+
+    transcription_source = audio_path or str(path)
+    raw_text = transcribe_audio(transcription_source)
+
     result = {
         "input_type":input_type,
         "content_hash":content_hash,
         "duration_seconds":duration,
-        "audio_path":None,
+        "raw_text":raw_text,
+        "audio_path":audio_path,
         "media_path":str(path)
     }
-    if input_type == "video_file":
-        audio_path = extract_audio(str(path))
-        result["audio_path"] = str(audio_path)
-    return result
+
+def validate_asr_file_size(audio_path: str) -> None:
+    """Ensure the media sent to Groq is within the configured API limit"""
+    file_size = Path(audio_path).stat().st_size
+    max_size = ASR_MAX_FILE_SIZE_MB * 1024 * 1024
+    if file_size > max_size:
+        raise MediaTooLargeError(
+            f"Audio prepared for transcription exceeds the {ASR_MAX_FILE_SIZE_MB} MB ASR API limit"
+        )
