@@ -8,12 +8,11 @@
 |---|---|---|
 | 1 | Ingestion | ✅ Done |
 | 2 | Claim Review & Editing | ✅ Done |
-| 3 | Claim Processing (canonicalization) | 🟡 In progress (3.1 drafted, untested) |
+| 3 | Claim Processing (canonicalization) | 🟡 In progress (3.1 complete; 3.2–3.3 pending) |
 | 4 | Agentic Verification (LangGraph) | 🔲 Not started |
 | 5 | Result Aggregation & Persistence | 🔲 Not started |
-| 6 | Auth & Route Protection | 🔲 Not started |
-| 7 | Frontend Build-Out (Next.js) | 🔲 Not started |
-| 8 | Performance, Polish & Deployment | 🔲 Not started |
+| 6 | Rate Limiting & Abuse Protection | 🔲 Not started |
+| 7 | Backend Performance, Reliability & Deployment | 🔲 Not started |
 
 Legend: 🔲 Not started · 🟡 In progress · ✅ Done
 
@@ -24,11 +23,11 @@ Legend: 🔲 Not started · 🟡 In progress · ✅ Done
 ### [Planning] — 2026-09-22
 
 - Reviewed the workflow diagram PDF and the full project brief.
-- Wrote `context.md` covering: two-mode system (General/Medical), full user
-  flow, architecture (Next.js + FastAPI + Supabase), draft DB schema, the
+- Wrote `context.md` covering: two-mode system (General/Medical), backend
+  processing flow, architecture (FastAPI + Supabase), draft DB schema, the
   LangGraph agentic verification design, caching strategy (URL/content-hash,
   scoped per mode), auth/route-protection plan, non-functional requirements,
-  and the 8-phase implementation roadmap.
+  and the backend implementation roadmap.
 - Decided: only the verification stage is agentic (LangGraph); ingestion →
   claim detection stays a deterministic NLP pipeline for speed/predictability.
 - Decided: caching key is `(raw_url or content_hash, mode)` — same content in
@@ -58,9 +57,6 @@ Legend: 🔲 Not started · 🟡 In progress · ✅ Done
   - §8 — Reframed auth: Supabase Auth is a login gate to block unauthorized/
     anonymous API use only — it is explicitly decoupled from data storage,
     never attaches identity to a submission.
-  - §4.1 — Removed the personal "History page" from the frontend page list
-    (no per-user data to show it from); noted an optional future "recently
-    checked" feed off the shared cache table instead, out of scope for now.
 
 **Next step:** unchanged — Phase 1 (Ingestion → Claim Detection backend
 core), starting with resolving the open decisions in `context.md` §12.
@@ -69,17 +65,15 @@ core), starting with resolving the open decisions in `context.md` §12.
 
 ### [Planning — revision] — 2026-09-22 (2)
 
-- User decision: **remove the auth layer completely.** No login/signup, no
-  Supabase Auth, no sessions, no user concept anywhere in the app. The app is
-  open to all visitors.
+- User decision: **remove the auth layer completely.** No Supabase Auth,
+  session handling, or user identity is part of the backend. Processing
+  endpoints remain publicly accessible.
 - Only protection needed is against DDoS/abuse — implemented purely as
   **rate limiting** on the processing endpoints (ingestion/verification),
   IP-based, via a lightweight middleware (`slowapi` or Redis-backed counter).
 - Updated `context.md`:
   - §4 architecture diagram — dropped the Auth box from Supabase, backend box
     now notes "rate-limited endpoints" instead of an auth-gated ones.
-  - §4.1 — frontend calls backend with plain REST, no JWT/Authorization
-    header; removed the earlier "auth pages" note.
   - §4.2 — route protection line now points to rate limiting only.
   - §4.3 — Supabase is Postgres-only, no Auth, no Storage; explicit "no auth
     system at all" statement.
@@ -91,7 +85,7 @@ core), starting with resolving the open decisions in `context.md` §12.
   - Tech stack table — replaced "Database / Auth" row with a plain "Database"
     row (Postgres cache table only) and added a new "Rate limiting" row.
   - §11 — Phase 6 renamed "Route Protection (Rate Limiting)", no longer an
-    auth phase; Phase 7 frontend scope no longer includes login/auth pages.
+    auth phase.
 
 **Next step:** unchanged — Phase 1 (Ingestion → Claim Detection backend
 core), starting with resolving the open decisions in `context.md` §12.
@@ -263,11 +257,20 @@ Backend scaffolding is in place using FastAPI:-
 - Added the planned endpoint `POST /claims/extract/{submission_id}` to retrieve the submission's processed `raw_text`, extract candidate claims, store them in the existing `claims` table, update the submission status to `claims_ready`, and return the generated list.
 - Candidate claims are intended to be available to the existing Phase 2 APIs for inclusion, exclusion, editing, restoration, adding, deleting, and confirmation.
 - Phase 3.1 only generates potential candidates. It does not perform final claim-vs-non-claim classification or canonicalization; those remain later Phase 3 stages.
-- **Testing status:** implementation code has been drafted/provided; end-to-end execution, API testing, database validation, and tuning of extraction quality still need to be completed before marking Phase 3.1 fully verified.
-- **Pending — integrated flow testing (Phase 1 → Phase 3.1 → Phase 2):** testing extraction against the given inputs is **not done yet**. This means testing ingestion (text / audio / video / URL), then candidate claim extraction on the resulting `raw_text`, then the Phase 2 claim review & editing endpoints (include, exclude, edit, restore, add, delete, confirm) to verify all three stages work together. This integrated test will be carried out as part of Phase 3.1.
 
-**Next step:** Integrate the router, verify required dependencies, then test extraction with representative text and confirm that the resulting candidates work with the Phase 2 review endpoints (i.e. run the full Phase 1 → Phase 3.1 → Phase 2 flow test).
+---
 
+### [Phase 3.1 — Complete] — 2026-10-15
+
+- Completed end-to-end testing of the Phase 1 → Phase 3.1 → Phase 2 flow.
+- Verified ingestion, candidate-claim extraction from processed `raw_text`, persistence in the `claims` table, and the Phase 2 claim-review operations.
+- Phase 3.1 is complete and working as expected.
+
+**Next step:** Begin Phase 3.2 — classify reviewed candidate claims as verifiable claims before canonicalization in Phase 3.3.
+
+ - Needs better fine tuning of Bart Labels and threshold and tokenization of splitting of raw text (which comes from speech to text after ASR) into sentences since for many shorts it is not able to pick up all the facts, I suggest we keep the threshold low and allow a lot of claims to be detected so that we dont miss any crucial ones. Since the user has the power to exclude it makes sense to detect all
+
+ Thus upgrading or modifying the worflow uptill now that is the [ ingestion->extraction->candidate claims display] this work is still pending
 ---
 
 <!-- Add new entries above this line -->

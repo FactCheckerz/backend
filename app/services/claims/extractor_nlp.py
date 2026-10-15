@@ -43,7 +43,7 @@ class NLPClaimExtractor:
         classifier = get_bart_classifier()
         candidates = []
         labels = [
-            "a factual statement that can be verified",
+            "a factual statement",
             "an opinion, question, command, or non-factual statement"
         ]
         for sentence in sentences:

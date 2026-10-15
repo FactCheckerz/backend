@@ -39,7 +39,7 @@ def extract_claims(submission_id: str):
         (supabase.table("submissions").delete().eq("id",submission_id).execute())
         raise HTTPException(
             status_code=422,
-            detail="No verifiable candidate claims were detected, temporary submission row deleted"
+            detail="No verifiable candidate claims were detected"
         )
     if candidates:
         rows = [
