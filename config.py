@@ -15,11 +15,13 @@ load_dotenv()
 EMBED_MODEL = "BAAI/bge-large-en-v1.5"
 
 # ---- Cross-encoder for NLI / entailment ----
-# DeBERTa-v3-large fine-tuned for NLI + zero-shot (MoritzLaurer, 2024 checkpoint).
+# DeBERTa-v3-large fine-tuned on MNLI + FEVER + ANLI + LingNLI + WANLI.
 # DeBERTa-v3 already beats BERT/RoBERTa on GLUE/MNLI at the same size because of
-# disentangled attention + ELECTRA-style pretraining — this is a genuinely
-# stronger architecture, not just a newer label.
-NLI_MODEL = "MoritzLaurer/deberta-v3-large-zeroshot-v2.0"
+# disentangled attention + ELECTRA-style pretraining.
+# Must be a 3-way (entailment / neutral / contradiction) model: the
+# "zeroshot-v2.0" checkpoints are 2-way (entailment / not_entailment) and can
+# never output "contradiction", so a False verdict becomes impossible.
+NLI_MODEL = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
 
 # ---- Cross-encoder for evidence re-ranking ----
 RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"  # 2024, multilingual, strong on medical/scientific text
@@ -52,6 +54,10 @@ DENSE_WEIGHT = 0.6
 BM25_WEIGHT = 0.4
 TOP_K_RETRIEVE = 15
 TOP_K_AFTER_RERANK = 5
+# Evidence the reranker scores below this (0-1) doesn't vote on the verdict:
+# NLI models confidently output "contradiction" on off-topic text, so
+# irrelevant abstracts would otherwise drag true claims to "Misleading".
+MIN_RELEVANCE = 0.3
 
 # ---- Device ----
 # "mps" on the M5 laptop (Apple Silicon), "cuda" on Colab T4, "cpu" as fallback.

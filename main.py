@@ -9,8 +9,10 @@ in your pipeline.
 """
 import os
 import tempfile
+import traceback
 
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pipeline import run_pipeline
 from media_fetch import download_media
@@ -19,6 +21,14 @@ app = FastAPI(
     title="Multimodal Medical Misinformation Detection & Fact Verification API",
     version="0.1.0",
 )
+
+
+@app.exception_handler(Exception)
+async def report_errors(request: Request, exc: Exception):
+    """Return the actual error instead of a bare 500, so the UI can show
+    what went wrong (failed download, Ollama not running, ...)."""
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"error": f"{type(exc).__name__}: {exc}"})
 
 
 class VerifyRequest(BaseModel):

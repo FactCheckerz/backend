@@ -22,13 +22,25 @@ def run_pipeline(raw_input: str, input_type: str = "text") -> dict:
         claim = claim_obj["normalized_claim"]
         step(f"--- Verifying claim {i}/{len(claims)}: \"{claim}\" ---")
 
-        # Pull fresh PubMed evidence for this specific claim's topic before searching.
-        refresh_corpus_for_topic(claim)
+        # Pull fresh PubMed evidence for this claim before searching: the LLM's
+        # keyword query first, then broader fallbacks if PubMed finds nothing.
+        # For denials ("X is fake") search the subject first — the LLM's query
+        # tends to include words like "myth" that no paper uses.
+        denial_subject = claim_obj.get("denial_subject", "")
+        refresh_corpus_for_topic(
+            denial_subject,
+            claim_obj.get("pubmed_query", ""),
+            " ".join(claim_obj.get("medical_entities", [])),
+            claim_obj.get("main_topic", ""),
+            claim,
+        )
 
         retrieved = retrieve(claim)
-        analyzed = analyze_claim(claim, retrieved)
-        result = full_output(claim, analyzed)
+        analyzed = analyze_claim(claim, retrieved, relevance_query=denial_subject)
+        result = full_output(claim, analyzed, asserts_effect=claim_obj.get("asserts_effect", False))
         result["medical_entities"] = claim_obj.get("medical_entities", [])
+        result["main_topic"] = claim_obj.get("main_topic", "")
+        result["original_text"] = claim_obj.get("raw_span", "")
         results.append(result)
         done(f"--- Claim {i}/{len(claims)} done. ---")
 

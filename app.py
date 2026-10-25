@@ -16,6 +16,14 @@ API_BASE = "http://127.0.0.1:8000"
 MEDIA_TIMEOUT = 600  # audio/video: download + transcription/OCR can take a while
 
 
+def _error(resp: httpx.Response):
+    try:
+        detail = resp.json().get("error", resp.text)
+    except ValueError:
+        detail = resp.text
+    return f"**Error ({resp.status_code}):** {detail}", "", ""
+
+
 def render(data):
     claims = data.get("claims")
     if not claims:
@@ -24,22 +32,40 @@ def render(data):
     verdict_blocks = []
     explanation_blocks = []
     evidence_blocks = []
+    topic = claims[0].get("main_topic")
     for i, c in enumerate(claims, start=1):
         prefix = f"Claim {i}/{len(claims)}"
+        # For Unverified, "confidence" is how sure we are there's no evidence —
+        # not something a user should read as a score.
+        confidence = (
+            c.get("verdict_note") or "Not enough evidence found to confirm or refute this claim"
+            if c["verdict"] == "Unverified" else f"Confidence: {c['confidence']:.0%}"
+        )
+        # Show the user's own words next to what was actually checked, so any
+        # rewording by the LLM is visible rather than silently trusted.
+        original = c.get("original_text", "")
+        from_message = (
+            f"From your message: \"{original}\"  \n"
+            if original and original.strip(" .").lower() != c["claim"].strip(" .").lower() else ""
+        )
         verdict_blocks.append(
             f"### {prefix} — Verdict: **{c['verdict']}**  \n"
-            f"Confidence: {c['confidence']:.0%}  \n"
+            f"{confidence}  \n"
+            f"{from_message}"
             f"Claim checked: *{c['claim']}*"
         )
         explanation_blocks.append(f"{prefix}: {c['explanation']}")
         evidence_blocks.append(
             f"**{prefix}**\n" + "\n".join(
-                f"- [{e['nli_label'].upper()}] {e.get('source','')}: {e['text'][:200]}..."
+                f"- [{e['nli_label'].upper()}] [{e.get('source','')}]({e.get('url','')}): "
+                f"{e.get('evidence_sentence') or e['text'][:200] + '...'}"
                 for e in c["evidence_detail"]
             )
         )
 
     verdict_md = "\n\n---\n\n".join(verdict_blocks)
+    if topic:
+        verdict_md = f"**Topic:** {topic}\n\n" + verdict_md
     explanation_text = "\n\n".join(explanation_blocks)
     evidence_md = "\n\n".join(evidence_blocks)
     return verdict_md, explanation_text, evidence_md
@@ -47,7 +73,8 @@ def render(data):
 
 def check_text(message: str):
     resp = httpx.post(f"{API_BASE}/verify", json={"text": message, "input_type": "text"}, timeout=120)
-    resp.raise_for_status()
+    if resp.is_error:
+        return _error(resp)
     return render(resp.json())
 
 
@@ -61,7 +88,8 @@ def check_file(file_path: str, media_type: str):
             data={"input_type": media_type},
             timeout=MEDIA_TIMEOUT,
         )
-    resp.raise_for_status()
+    if resp.is_error:
+        return _error(resp)
     return render(resp.json())
 
 
@@ -73,7 +101,8 @@ def check_url(url: str, media_type: str):
         json={"text": "", "input_type": media_type, "url": url},
         timeout=MEDIA_TIMEOUT,
     )
-    resp.raise_for_status()
+    if resp.is_error:
+        return _error(resp)
     return render(resp.json())
 
 

@@ -344,6 +344,7 @@ backend, so it falls back to CPU (int8) on Macs.
 | Log shows `Groq transcription failed (401 ...)` | `GROQ_API_KEY` is wrong or expired. Generate a new key |
 | Log shows `Groq transcription failed (429 ...)` | You hit Groq's free-tier rate limit. It falls back to local automatically, or you can wait a minute |
 | Transcripts are poor without Groq | Set `LOCAL_WHISPER_MODEL=small` or `large-v3-turbo`. It's more accurate but slower on CPU |
+| Claims are fragments, garbled, or include background stats / "talk to your doctor" | Small LLMs (`llama3.2:3b`) follow the extraction instructions loosely. Use `LLM_MODEL=qwen2.5:7b-instruct` if your RAM allows |
 | Out-of-memory / machine freezes | Switch to `LLM_MODEL=llama3.2:3b` and close other heavy apps |
 | Want a clean evidence index | Stop the API and delete the `chroma_store/` folder. It's rebuilt on the next request |
 
