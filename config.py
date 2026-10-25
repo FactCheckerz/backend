@@ -30,6 +30,15 @@ RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"  # 2024, multilingual, strong on medi
 # to a HF pipeline there, see notes in claim_extraction.py).
 LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:7b-instruct")  # or "llama3.2:3b" for speed
 
+# ---- Speech-to-text ----
+# If GROQ_API_KEY is set, audio is transcribed by Groq's hosted Whisper
+# (large-v3-turbo — far more accurate than a local "base" model on CPU, and
+# faster). Without a key, or if the Groq call fails (offline, rate limit),
+# preprocessing.py falls back to local faster-whisper.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_WHISPER_MODEL = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
+LOCAL_WHISPER_MODEL = os.getenv("LOCAL_WHISPER_MODEL", "base")  # "small" / "large-v3-turbo" = more accurate, slower
+
 # ---- Vector store ----
 CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_store")
 COLLECTION_NAME = "medical_evidence"
